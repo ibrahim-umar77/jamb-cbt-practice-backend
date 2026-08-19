@@ -8,9 +8,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
+// Database connection
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
@@ -18,6 +20,22 @@ const db = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
 });
+
+// ========================================
+// ROOT ROUTE
+// ========================================
+
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "JAMB CBT Practice API is running",
+    status: "OK",
+  });
+});
+
+// ========================================
+// TEST DATABASE CONNECTION
+// ========================================
 
 app.get("/api/test", async (req, res) => {
   try {
@@ -39,6 +57,10 @@ app.get("/api/test", async (req, res) => {
     });
   }
 });
+
+// ========================================
+// GET SUBJECTS
+// ========================================
 
 app.get("/api/subjects", async (req, res) => {
   try {
@@ -68,6 +90,10 @@ app.get("/api/subjects", async (req, res) => {
     });
   }
 });
+
+// ========================================
+// GET PRACTICE SETS BY SUBJECT
+// ========================================
 
 app.get("/api/practice-sets/:subjectId", async (req, res) => {
   try {
@@ -109,6 +135,10 @@ app.get("/api/practice-sets/:subjectId", async (req, res) => {
     });
   }
 });
+
+// ========================================
+// GET QUESTIONS BY PRACTICE SET
+// ========================================
 
 app.get("/api/questions/:practiceSetId", async (req, res) => {
   try {
@@ -152,9 +182,9 @@ app.get("/api/questions/:practiceSetId", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server running at http://localhost:${PORT}`);
-});
+// ========================================
+// SUBMIT PRACTICE
+// ========================================
 
 app.post("/api/submit-practice", async (req, res) => {
   const connection = await db.getConnection();
@@ -162,7 +192,7 @@ app.post("/api/submit-practice", async (req, res) => {
   try {
     const { practice_set_id, answers } = req.body;
 
-    // Validate the request
+    // Validate request
     if (!practice_set_id || !answers) {
       return res.status(400).json({
         success: false,
@@ -170,7 +200,7 @@ app.post("/api/submit-practice", async (req, res) => {
       });
     }
 
-    // Get the questions belonging to this practice set
+    // Get questions belonging to this practice set
     const [questions] = await connection.query(
       `
       SELECT
@@ -213,7 +243,7 @@ app.post("/api/submit-practice", async (req, res) => {
     // Start database transaction
     await connection.beginTransaction();
 
-    // Create the attempt
+    // Create attempt
     const [attemptResult] = await connection.query(
       `
       INSERT INTO attempts
@@ -277,7 +307,6 @@ app.post("/api/submit-practice", async (req, res) => {
     });
 
   } catch (error) {
-
     // Undo changes if something went wrong
     await connection.rollback();
 
@@ -293,8 +322,14 @@ app.post("/api/submit-practice", async (req, res) => {
     });
 
   } finally {
-
     connection.release();
-
   }
+});
+
+// ========================================
+// START SERVER
+// ========================================
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Backend server running on port ${PORT}`);
 });
